@@ -104,7 +104,7 @@ class Escalonador:
                         processo.quantum_restante = self.quantum                                              #Isso evita desperdiçar quantum e melhora o uso da CPU
                     self.execucao[idx] = processo
                 else:
-                    self.timeline[idx].append(" ocioso ")
+                    self.timeline[idx].append(" Espera ")
                     time.sleep(1)
                     continue
 
