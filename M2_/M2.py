@@ -55,7 +55,7 @@ def carregar_processos(caminho):
 # ====================== ESCALONADOR ROUND ROBIN ======================
 
 class Escalonador:
-    def __init__(self, num_nucleos, quantum, processos_iniciais, processos_dinamicos):
+    def __init__(self, num_nucleos, quantum, processos_iniciais, processos_dinamicos, quantum_dinamico=False):
         self.num_nucleos = num_nucleos
         self.quantum = quantum
         self.prontos = Queue()
@@ -67,9 +67,12 @@ class Escalonador:
         self.dinamicos = processos_dinamicos
         self.finalizados = []
         self.timeline = [[] for _ in range(num_nucleos)]
+        self.quantum_dinamico = quantum_dinamico
 
         for p in processos_iniciais:
             self.prontos.put(p)
+
+    # ====================== FUNÇÃO PARA CRIAR THREADS ======================
 
     def iniciar(self):
         for i in range(self.num_nucleos):
@@ -94,7 +97,10 @@ class Escalonador:
                     if processo.tempo_inicio is None:
                         processo.tempo_inicio = self.tempo
                     processo.estado = 'executando'
-                    processo.quantum_restante = self.quantum
+                    if self.quantum_dinamico:
+                        processo.quantum_restante = min(self.quantum, processo.tempo_restante)
+                    else:
+                        processo.quantum_restante = self.quantum
                     self.execucao[idx] = processo
                 else:
                     self.timeline[idx].append(" ocioso ")
@@ -162,7 +168,7 @@ class Escalonador:
         return not self.dinamicos and self.prontos.empty() and all(p is None for p in self.execucao) and not self.bloqueados
 
     def gerar_relatorio(self):
-        with open('relatorio.txt', 'w') as f:
+        with open('relatorio.txt', 'w', encoding='utf-8') as f:
             f.write("ID | Espera | Turnaround | Trocas de contexto\n")
             for p in sorted(self.finalizados, key=lambda x: x.id):
                 espera = p.turnaround - (p.exec1 + (p.exec2 if p.bloqueio else 0) + (p.espera if p.bloqueio else 0))
@@ -174,7 +180,8 @@ class Escalonador:
 
 # ====================== MAIN.PY ======================
 
-QUANTUM = 3
+QUANTUM_BASE = 3
+QUANTUM_DINAMICO = True  # True para ativar quantum dinâmico, False para fixo
 NUM_NUCLEOS = 2
 ARQUIVO_ENTRADA = 'entrada.txt'
 tempo_global = 0
@@ -192,7 +199,7 @@ if __name__ == "__main__":
     print("Iniciando simulação Round Robin com múltiplos núcleos...\n")
 
     processos_iniciais, processos_dinamicos = carregar_processos(ARQUIVO_ENTRADA)
-    escalonador = Escalonador(NUM_NUCLEOS, QUANTUM, processos_iniciais, processos_dinamicos)
+    escalonador = Escalonador(NUM_NUCLEOS, QUANTUM_BASE, processos_iniciais, processos_dinamicos, QUANTUM_DINAMICO)
 
     tempo_thread = threading.Thread(target=atualizar_tempo)
     tempo_thread.start()
